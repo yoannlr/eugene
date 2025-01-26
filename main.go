@@ -186,6 +186,8 @@ func main() {
         eugeneUsage(false, "  removes gaps in generations numbers, eg. [0, 2, 3, 6] -> [0, 1, 2, 3]")
         eugeneUsage(false, textBold + "eugene deletedups [--align] [--dry-run]" + textReset)
         eugeneUsage(false, "  deletes duplicates generations and aligns the remaining ones if " + textBold + "--align" + textReset + " specified")
+        eugeneUsage(false, textBold + "eugene rollback [n [--dry-run]]" + textReset)
+        eugeneUsage(false, "  rolls back to the previous generation, or to n generations if specified")
         eugeneUsage(false, "")
         eugeneUsage(false, "eugene can be configured with the following environment variables")
         eugeneUsage(false, "  - EUGENE_REPO - list of entries for each handler, defaults to ${XDG_CONFIG_HOME-$HOME/.config}/eugene")
@@ -381,6 +383,23 @@ func main() {
             doAlign(gens, dryRun)
         }
     } else if os.Args[1] == "rollback" {
-        // todo
+        n := 1
+        if len(os.Args) >= 3 {
+            num, err := strconv.Atoi(os.Args[2])
+            if err != nil {
+                eugeneError(os.Args[2] + " is an invalid number for parameter `n`")
+            }
+            n = num
+        }
+        dryRun := hasFlag(os.Args, "--dry-run", 3)
+        if doRollback(config, gens, n, dryRun) {
+            if dryRun {
+                eugeneMessage("Rolled back " + os.Args[2] + " generations " + textYellow + "(dry-run)" + textReset)
+            } else {
+                eugeneMessage("Rolled back " + os.Args[2] + " generations")
+            }
+        } else {
+            os.Exit(1)
+        }
     }
 }

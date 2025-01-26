@@ -185,3 +185,25 @@ func doDeleteDups(gens string, dryRun bool) {
 		}
 	}
 }
+
+func doRollback(config Config, gens string, n int, dryRun bool) bool {
+	allGens := genGetAll(gens)
+	slices.Sort(allGens)
+	slices.Reverse(allGens)
+    currentGen := genGetCurrent(gens)
+    currentIndex := -1
+    for i, g := range allGens {
+        if g == currentGen {
+            currentIndex = i
+            break
+        }
+    }
+    if currentIndex + n >= len(allGens) {
+        eugeneError("Not enough generations to rollback " + strconv.Itoa(n) + " generations ago")
+        return false
+    }
+    target := allGens[currentIndex + n]
+    eugeneMessage("Rolling back to generation " + strconv.Itoa(target))
+    genSwitch(config, gens, target, dryRun)
+    return true
+}

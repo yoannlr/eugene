@@ -14,3 +14,4 @@
    - `EUGENE_TARGET_GEN`, the target generation, eg. `2`
    - `EUGENE_HANDLER_NAME`, the currently running handler, eg. `apt_pkgs`
 - new `deletedups` subcommand, automatically deletes duplicate generations
+- new `rollback` subcommand, switches back to `n` generations ago
