@@ -9,6 +9,7 @@ import (
 	"slices"
 	"path/filepath"
 	"strconv"
+	"crypto/sha256"
 )
 
 func doBuild(args []string, repo string, gens string, config Config) bool {
@@ -22,8 +23,11 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 	commentRegex, _ := regexp.Compile("^#")
 	emptyLineRegex, _ := regexp.Compile("^$")
 	hostname, _ := os.Hostname()
+	eugeneMessage("System hostname is " + hostname)
 
 	hasDiff := true
+
+	genHash := sha256.New()
 
 	for _, h := range config.Handlers {
 		handlerStatus(h, "build")
@@ -45,7 +49,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 		if len(handlerFiles) > 0 {
 			var handlerEntries []string
 			for _, f := range handlerFiles {
-				file, _ := os.Open(f)
+				file, _ := os.Open(filepath.Join(repo, f))
 				scanner := bufio.NewScanner(file)
 				for scanner.Scan() {
 					line := scanner.Text()
@@ -62,6 +66,8 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 			handlerResult, _ := os.Create(filepath.Join(newGenDir, h.Name))
 			for _, p := range handlerEntries {
 				handlerResult.WriteString(p + "\n")
+				// hash a partir des entries dans l'ordre => reproductible
+				genHash.Write([]byte(p))
 			}
 			handlerResult.Close()
 
@@ -73,6 +79,10 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 			}
 		}
 	}
+
+	hashFile, _ := os.Create(filepath.Join(newGenDir, "_hash"))
+	hashFile.WriteString(fmt.Sprintf("%x\n", genHash.Sum(nil)))
+	hashFile.Close()
 
 	if hasDiff {
 		genSetLatest(gens, newGen)
@@ -99,23 +109,79 @@ func doSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
 	}
 }
 
-func doAlign(gens string) {
+func doAlign(gens string, dryRun bool) {
 	allGens := genGetAll(gens)
 	currentGen := genGetCurrent(gens)
 	latestGen := genGetLatest(gens)
 	for i, g := range allGens {
 		if g != i {
 			eugeneMessage(strconv.Itoa(g) + " -> " + strconv.Itoa(i))
-			genRenumber(gens, g, i)
+			if ! dryRun {
+				genRenumber(gens, g, i)
+			}
 			if g == currentGen {
-				genSetCurrent(gens, i)
+				if ! dryRun {
+					genSetCurrent(gens, i)
+				}
 				eugeneMessage("current -> " + strconv.Itoa(i))
 			}
 			if g == latestGen {
-				genSetLatest(gens, i)
+				if ! dryRun {
+					genSetLatest(gens, i)
+				}
 				eugeneMessage("latest -> " + strconv.Itoa(i))
 			}
 		}
 	}
-	eugeneMessage("Generations aligned")
+	if dryRun {
+		eugeneMessage("Generations aligned " + textYellow + "(dry-run)" + textReset)
+	} else {
+		eugeneMessage("Generations aligned")
+	}
+}
+
+func doDeleteDups(gens string, dryRun bool) {
+	allGens := genGetAll(gens)
+	//var hashesToGens map[string][]int // n'alloue pas la map
+	hashesToGens := make(map[string][]int)
+	for _, g := range allGens {
+		hash := genGetHash(gens, g)
+		hashesToGens[hash] = append(hashesToGens[hash], g)
+	}
+	dryCurrent := genGetCurrent(gens)
+	dryLatest := genGetLatest(gens)
+	for _, gns := range hashesToGens {
+		if len(gns) > 1 {
+			slices.Sort(gns)
+			keepGen := gns[len(gns) - 1]
+			for i := 0; i < len(gns) - 1; i++ {
+				currentGen := dryCurrent
+				latestGen := dryLatest
+				if dryRun {
+					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen) + textYellow + " (dry-run)" + textReset)
+				} else {
+					currentGen = genGetCurrent(gens)
+					latestGen = genGetLatest(gens)
+					genDelete(gens, gns[i])
+					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen))
+				}
+				if gns[i] == currentGen {
+					if ! dryRun {
+						genSetCurrent(gens, keepGen)
+					} else {
+						dryCurrent = keepGen
+					}
+					eugeneMessage("current -> " + strconv.Itoa(keepGen))
+				}
+				if gns[i] == latestGen {
+					if ! dryRun {
+						genSetLatest(gens, keepGen)
+					} else {
+						dryLatest = keepGen
+					}
+					eugeneMessage("latest -> " + strconv.Itoa(keepGen))
+				}
+			}
+		}
+	}
 }

@@ -37,9 +37,9 @@ func commandExec(shellCommand string) bool {
     return err == nil
 }
 
-func hasDryRunFlag(args []string, startLookup int) bool {
+func hasFlag(args []string, flag string, startLookup int) bool {
     for i := startLookup; i < len(args); i++ {
-        if args[i] == "--dry-run" {
+        if args[i] == flag {
             return true
         }
     }
@@ -159,10 +159,10 @@ func main() {
     }
 
     if len(os.Args) < 2 {
-        eugeneUsage(true, "eugene <build|list|diff|switch|delete|show|apply|align>")
+        eugeneUsage(true, "eugene <build|list|diff|switch|delete|show|apply|align|deletedups>")
         eugeneUsage(false, "")
         eugeneUsage(false, textBold + "eugene build [comment]" + textReset)
-        eugeneUsage(false, "  creates a new generation with the current file")
+        eugeneUsage(false, "  creates a new generation with the current files from the repo")
         eugeneUsage(false, "  the generation is automatically removed if it does not differ from the latest")
         eugeneUsage(false, textBold + "eugene list" + textReset)
         eugeneUsage(false, "  lists all the generations")
@@ -176,21 +176,28 @@ func main() {
         eugeneUsage(false, "  deletes one or more generations")
         eugeneUsage(false, "  deletion of the current generation and generation 0 is forbidden")
         eugeneUsage(false, textBold + "eugene show <gen> [handler]" + textReset)
-        eugeneUsage(false, "  show all the entries in a generation")
+        eugeneUsage(false, "  shows all the entries in a generation")
         eugeneUsage(false, textBold + "eugene upgrade [--dry-run]" + textReset)
-        eugeneUsage(false, "  perform upgrade command of each handler")
+        eugeneUsage(false, "  performs upgrade command of each handler")
         eugeneUsage(false, textBold + "eugene apply [--dry-run]" + textReset)
-        eugeneUsage(false, "  build a new generation and automatically switch to it")
+        eugeneUsage(false, "  builds a new generation and automatically switch to it")
         eugeneUsage(false, "  equivalent to `eugene build && eugene switch latest`")
-        eugeneUsage(false, textBold + "eugene align" + textReset)
-        eugeneUsage(false, "  remove gaps in generations numbers, eg. [0, 2, 3, 6] -> [0, 1, 2, 3]")
+        eugeneUsage(false, textBold + "eugene align [--dry-run]" + textReset)
+        eugeneUsage(false, "  removes gaps in generations numbers, eg. [0, 2, 3, 6] -> [0, 1, 2, 3]")
+        eugeneUsage(false, textBold + "eugene deletedups [--align] [--dry-run]" + textReset)
+        eugeneUsage(false, "  deletes duplicates generations and aligns the remaining ones if " + textBold + "--align" + textReset + " specified")
         eugeneUsage(false, "")
         eugeneUsage(false, "eugene can be configured with the following environment variables")
-        eugeneUsage(false, "  - EUGENE_REPO - list of entries for each handler, defaults to ~/.config/.eugene")
-        eugeneUsage(false, "  - EUGENE_GENS - internal storage for generations, defaults to ${EUGENE_REPO}/.gens")
+        eugeneUsage(false, "  - EUGENE_REPO - list of entries for each handler, defaults to ${XDG_CONFIG_HOME-$HOME/.config}/eugene")
+        eugeneUsage(false, "  - EUGENE_GENS - internal storage for generations, defaults to ${XDG_DATA_HOME-$HOME/.local}/state/eugene")
         eugeneUsage(false, "  - EUGENE_HOOKS - hook scripts for each handler, defaults to ${EUGENE_REPO}/hooks")
         eugeneUsage(false, "if not user-defined, these variables are automatically set by eugene at runtime")
         eugeneUsage(false, "and can be used in your custom scripts/hooks")
+        eugeneUsage(false, "")
+        eugeneUsage(false, "during a switch operation, the following environment variables are available")
+        eugeneUsage(false, "  - EUGENE_CURRENT_GEN - the current generation, eg. `1`")
+        eugeneUsage(false, "  - EUGENE_TARGET_GEN - the target generation, eg. `2`")
+        eugeneUsage(false, "  - EUGENE_HANDLER_NAME - the name of the currently running handler, eg. `apt_pkgs`")
         os.Exit(1)
     }
 
@@ -305,7 +312,7 @@ func main() {
             os.Exit(1)
         }
 
-        dryRun := hasDryRunFlag(os.Args, 3)
+        dryRun := hasFlag(os.Args, "--dry-run", 3)
 
         if doSwitch(config, gens, targetGen, dryRun) {
             os.Exit(0)
@@ -344,7 +351,7 @@ func main() {
             }
         }
     } else if os.Args[1] == "upgrade" {
-        dryRun := hasDryRunFlag(os.Args, 2)
+        dryRun := hasFlag(os.Args, "--dry-run", 2)
         eugeneMessage("Running upgrade")
         for _, h := range config.Handlers {
             handlerStatus(h, "upgrade")
@@ -355,7 +362,7 @@ func main() {
             }
         }
     } else if os.Args[1] == "apply" {
-        dryRun := hasDryRunFlag(os.Args, 2)
+        dryRun := hasFlag(os.Args, "--dry-run", 2)
         if doBuild(make([]string, 0), repo, gens, config) {
             latestGen := genGetLatest(gens)
             doSwitch(config, gens, latestGen, dryRun)
@@ -363,6 +370,17 @@ func main() {
             eugeneMessage("Therefore not switching")
         }
     } else if os.Args[1] == "align" {
-
+        dryRun := hasFlag(os.Args, "--dry-run", 2)
+        doAlign(gens, dryRun)
+    } else if os.Args[1] == "deletedups" {
+        dryRun := hasFlag(os.Args, "--dry-run", 2)
+        doDeleteDups(gens, dryRun)
+        eugeneMessage("Duplicate generations deleted")
+        if hasFlag(os.Args, "--align", 2) {
+            eugeneMessage("Now aligning")
+            doAlign(gens, dryRun)
+        }
+    } else if os.Args[1] == "rollback" {
+        // todo
     }
 }

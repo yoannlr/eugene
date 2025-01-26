@@ -150,7 +150,11 @@ func genGetPath(gens string, num int) string {
 }
 
 func genSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
+    // variables d'environnement pour utilisation dans scripts
+    os.Setenv("EUGENE_CURRENT_GEN", strconv.Itoa(genGetCurrent(gens)))
+    os.Setenv("EUGENE_TARGET_GEN", strconv.Itoa(targetGen))
     for _, h := range config.Handlers {
+        os.Setenv("EUGENE_HANDLER_NAME", h.Name)
         if ! handlerSetup(h, gens, dryRun) {
             return false
         }
@@ -196,4 +200,31 @@ func genGetAll(gens string) []int {
 
 func genRenumber(gens string, old int, new int) {
     os.Rename(filepath.Join(gens, strconv.Itoa(old)), filepath.Join(gens, strconv.Itoa(new)))
+}
+
+func genGetHash(gens string, num int) string {
+    if num == 0 {
+        // todo gen 0 n'a pas de hash
+        return ""
+    }
+    if ! genExists(gens, num) {
+        return ""
+    }
+    hashFile, err := os.Open(filepath.Join(gens, strconv.Itoa(num), "_hash"))
+    if err != nil {
+        return ""
+    }
+
+    hash := ""
+    scanner := bufio.NewScanner(hashFile)
+    for scanner.Scan() {
+        hash = scanner.Text()
+        // hash sur la premiere ligne uniquement
+        break
+    }
+    hashFile.Close()
+
+    //eugeneMessage("Hash for generation " + strconv.Itoa(num) + " is " + hash)
+
+    return hash
 }
