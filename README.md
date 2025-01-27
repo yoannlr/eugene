@@ -40,6 +40,22 @@ The help message will explain all you need to know and a sample configuration fi
 As eugène can run any command on your entries, you can adapt it to all your needs.
 eugène can, for example, be used to configure `gsettings` values for your Gnome configuration.
 
+### Why eugène and not ansible?
+
+Ansible is a great tool to ensure your host is configured the way you declared it.
+Furthermore, ansible is idempotent.
+But what ansible lacks is the ability to undo what your plays did.
+
+eugène brings this ability and can ensure idempotency as well depending on your handlers.
+
+I would still recommend to use ansible for server use and production environment.
+For your day-to-day use on desktop/laptop, where configuration lives and evolves, I thing eugène fits better.
+
+### Why eugène and not a script?
+
+Scripts are great, but unless you're a very careful person, your script is probably a one-shot install.
+Here again, eugène suits the life of a system, where things change and need to be undone.
+
 ## Installation
 
 eugène is made in go
