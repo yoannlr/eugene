@@ -69,4 +69,13 @@ sudo cp eugene /usr/local/bin/
 
 ## Integration
 
-You can very likely run eugene with [chezmoi](https://chezmoi.io). "Official" integration instructions coming soon!
+### eugène + [chezmoi](https://chezmoi.io)
+
+First, manage `~/.config/eugene` with chezmoi : `chezmoi add ~/.config/eugene`
+
+Then create a script that runs `eugene apply` everytime you run `chezmoi apply` : `~/.local/share/chezmoi/run_eugene_apply.sh`
+
+```sh
+#!/bin/sh
+eugene apply
+```delete

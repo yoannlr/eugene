@@ -401,5 +401,8 @@ func main() {
         } else {
             os.Exit(1)
         }
+    } else {
+        eugeneError("Unknown subcommand '" + os.Args[1] + "'")
+        os.Exit(1)
     }
 }
