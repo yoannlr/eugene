@@ -15,3 +15,4 @@
    - `EUGENE_HANDLER_NAME`, the currently running handler, eg. `apt_pkgs`
 - new `deletedups` subcommand, automatically deletes duplicate generations
 - new `rollback` subcommand, switches back to `n` generations ago
+- automatically generated configuration file is now set to mode 644 (not executable anymore)

@@ -69,7 +69,7 @@ handlers:
     remove: flatpak uninstall --noninteractive %s; flatpak uninstall --unused --noninteractive
     multiple: false`
     outFile := filepath.Join(repo, "eugene.yml")
-    os.WriteFile(outFile, []byte(defaultConf), os.ModePerm)
+    os.WriteFile(outFile, []byte(defaultConf), 0644)
     eugeneMessage("Created default config file to " + outFile)
 }
 
