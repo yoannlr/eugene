@@ -1,5 +1,13 @@
 # eugène's changelog
 
+## v3
+
+- new `storage` subcommand (`storage put` and `storage get`), enables data storage inside generations
+- new `repair` subcommand, ensures all entries of each handler for the current generation are installed (in case of change outside of eugene)
+- `diff` subcommand now takes an optional `handler` argument
+- remove the use of `EUGENE_HOOKS` environment variable
+- add man page
+
 ## v2
 
 - eugène repo is now `${XDG_CONFIG_HOME:-$HOME/.config}/eugene` by default

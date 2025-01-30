@@ -78,4 +78,20 @@ Then create a script that runs `eugene apply` everytime you run `chezmoi apply` 
 ```sh
 #!/bin/sh
 eugene apply
-```delete
+```
+
+## Manual page
+
+Generate man page with:
+
+```sh
+sudo apt install go-md2man
+go-md2man -in man.md -out eugene.1
+```
+
+Install manpage with:
+
+```sh
+sudo mkdir -p /usr/local/share/man/man1
+sudo cp eugene.1 /usr/local/share/man/man1/
+```

@@ -96,7 +96,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 }
 
 func doSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
-	if genSwitch(config, gens, targetGen, dryRun) {
+	if genSwitch(config, gens, targetGen, genGetCurrent(gens), dryRun) {
 		if dryRun {
 			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen) + textYellow + " (dry run)" + textReset)
 		} else {
@@ -105,6 +105,22 @@ func doSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
 		return true
 	} else {
 		eugeneError("Switch to generation " + strconv.Itoa(targetGen) + " failed")
+		return false
+	}
+}
+
+func doRepair(config Config, gens string, dryRun bool) bool {
+	targetGen := genGetCurrent(gens)
+	fromGen := 0
+	if genSwitch(config, gens, targetGen, fromGen, dryRun) {
+		if dryRun {
+			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen) + textYellow + " (dry run)" + textReset)
+		} else {
+			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen))
+		}
+		return true
+	} else {
+		eugeneError("Repaired system to generation " + strconv.Itoa(targetGen) + " failed")
 		return false
 	}
 }
@@ -204,6 +220,6 @@ func doRollback(config Config, gens string, n int, dryRun bool) bool {
     }
     target := allGens[currentIndex + n]
     eugeneMessage("Rolling back to generation " + strconv.Itoa(target))
-    genSwitch(config, gens, target, dryRun)
+    genSwitch(config, gens, target, genGetCurrent(gens), dryRun)
     return true
 }

@@ -149,20 +149,21 @@ func genGetPath(gens string, num int) string {
     return ""
 }
 
-func genSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
+func genSwitch(config Config, gens string, targetGen int, fromGen int, dryRun bool) bool {
     // variables d'environnement pour utilisation dans scripts
-    os.Setenv("EUGENE_CURRENT_GEN", strconv.Itoa(genGetCurrent(gens)))
+    os.Setenv("EUGENE_CURRENT_GEN", strconv.Itoa(fromGen))
     os.Setenv("EUGENE_TARGET_GEN", strconv.Itoa(targetGen))
+    repair := (fromGen == 0)
     for _, h := range config.Handlers {
         os.Setenv("EUGENE_HANDLER_NAME", h.Name)
-        if ! handlerSetup(h, gens, dryRun) {
+        if ! handlerSetup(h, gens, dryRun, repair) {
             return false
         }
         handlerHook(h, "before_switch", dryRun)
         if ! handlerSync(h, dryRun) {
             return false
         }
-        add, remove := genDiff(gens, genGetCurrent(gens), targetGen, h)
+        add, remove := genDiff(gens, fromGen, targetGen, h)
         if ! handlerRemove(h, remove, dryRun) {
             return false
         }
@@ -227,4 +228,53 @@ func genGetHash(gens string, num int) string {
     //eugeneMessage("Hash for generation " + strconv.Itoa(num) + " is " + hash)
 
     return hash
+}
+
+func genStoragePut(gens string, num int, namespace string, key string, value []string) bool {
+    if num == 0 || ! genExists(gens, num) {
+        return false
+    }
+    storagePath := filepath.Join(gens, strconv.Itoa(num), "storage", namespace)
+    if ! fileExists(storagePath) {
+        os.Mkdir(storagePath, os.ModePerm)
+    }
+    keyPath := filepath.Join(storagePath, key)
+    if len(value) > 0 && value[0] != "" {
+        keyFile, err := os.Create(keyPath)
+        if err != nil {
+            panic(err)
+        }
+        for _, val := range value {
+            keyFile.WriteString(val + "\n")
+        }
+        keyFile.Close()
+    } else {
+        // vide => suppression
+        if fileExists(keyPath) {
+            os.Remove(keyPath)
+            nsContent, _ := os.ReadDir(storagePath)
+            if len(nsContent) == 0 {
+                eugeneMessage("Namespace " + namespace + " now empty, deleting from generation")
+                os.Remove(storagePath)
+            }
+        }
+    }
+    return true
+}
+
+func genStorageGet(gens string, num int, namespace string, key string) []string {
+    if num == 0 || ! genExists(gens, num) {
+        return nil
+    }
+    keyPath := filepath.Join(gens, strconv.Itoa(num), "storage", namespace, key)
+    if ! fileExists(keyPath) {
+        return nil
+    }
+    var res []string
+    keyFile, _ := os.Open(keyPath)
+    scanner := bufio.NewScanner(keyFile)
+    for scanner.Scan() {
+        res = append(res, scanner.Text())
+    }
+    return res
 }

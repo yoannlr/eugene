@@ -8,6 +8,7 @@ import (
     "slices"
     "strings"
     "os/exec"
+    "bufio"
 
     "gopkg.in/yaml.v2"
 )
@@ -91,7 +92,7 @@ func eugeneUsage(showType bool, msg string) {
     if showType {
         fmt.Println(textRed + "Usage | " + textReset + msg)
     } else {
-        fmt.Println(textRed + "      | " + textReset + msg)
+        fmt.Println("        " + msg)
     }
 }
 
@@ -152,12 +153,6 @@ func main() {
         eugeneMessage("Initialized generations directory to " + gens)
     }
 
-    hooks := os.Getenv("EUGENE_HOOKS")
-    if hooks == "" {
-        hooks = filepath.Join(repo, "hooks")
-        os.Setenv("EUGENE_HOOKS", hooks)
-    }
-
     if len(os.Args) < 2 {
         eugeneUsage(true, "eugene <build|list|diff|switch|delete|show|apply|align|deletedups>")
         eugeneUsage(false, "")
@@ -167,7 +162,7 @@ func main() {
         eugeneUsage(false, textBold + "eugene list" + textReset)
         eugeneUsage(false, "  lists all the generations")
         eugeneUsage(false, "  the current one is indicated with an arrow")
-        eugeneUsage(false, textBold + "eugene diff <fromGen> <toGen>" + textReset)
+        eugeneUsage(false, textBold + "eugene diff <fromGen> <toGen> [handler]" + textReset)
         eugeneUsage(false, "  shows the difference between two generations")
         eugeneUsage(false, "  exit code is 0 if they're the same, 1 if they're different")
         eugeneUsage(false, textBold + "eugene switch <targetGen> [--dry-run]" + textReset)
@@ -188,11 +183,20 @@ func main() {
         eugeneUsage(false, "  deletes duplicates generations and aligns the remaining ones if " + textBold + "--align" + textReset + " specified")
         eugeneUsage(false, textBold + "eugene rollback [n [--dry-run]]" + textReset)
         eugeneUsage(false, "  rolls back to the previous generation, or to n generations if specified")
+        eugeneUsage(false, textBold + "eugene repair [--dry-run]" + textReset)
+        eugeneUsage(false, "  repairs changes that were made outside of eugene")
+        eugeneUsage(false, "  every handler entry from the current generation will be applied (equivalent to switch from gen 0)")
+        eugeneUsage(false, textBold + "eugene storage put <gen> <namespace> <key> <value>" + textReset)
+        eugeneUsage(false, textBold + "echo \"$value\" | eugene storage put <gen> <namespace> <key>" + textReset)
+        eugeneUsage(false, "  stores some data in a generation (may be used to backup an initial configuration value)")
+        eugeneUsage(false, "  value may be multiline and may be read from stdin")
+        eugeneUsage(false, "  if value is empty, the key will be removed from the generation storage")
+        eugeneUsage(false, textBold + "eugene storage get <gen> <namespace> <key>" + textReset)
+        eugeneUsage(false, "  retreives stored data from a generation")
         eugeneUsage(false, "")
         eugeneUsage(false, "eugene can be configured with the following environment variables")
         eugeneUsage(false, "  - EUGENE_REPO - list of entries for each handler, defaults to ${XDG_CONFIG_HOME-$HOME/.config}/eugene")
         eugeneUsage(false, "  - EUGENE_GENS - internal storage for generations, defaults to ${XDG_DATA_HOME-$HOME/.local}/state/eugene")
-        eugeneUsage(false, "  - EUGENE_HOOKS - hook scripts for each handler, defaults to ${EUGENE_REPO}/hooks")
         eugeneUsage(false, "if not user-defined, these variables are automatically set by eugene at runtime")
         eugeneUsage(false, "and can be used in your custom scripts/hooks")
         eugeneUsage(false, "")
@@ -255,8 +259,8 @@ func main() {
             }
         }
     } else if os.Args[1] == "diff" {
-        if len(os.Args) != 4 {
-            eugeneUsage(true, "eugene diff <genA> <genB>")
+        if len(os.Args) < 4 {
+            eugeneUsage(true, "eugene diff <genA> <genB> [handler]")
             os.Exit(1)
         }
         
@@ -271,8 +275,16 @@ func main() {
             os.Exit(2)
         }
 
+        handler := ""
+        if len(os.Args) == 5 {
+            handler = os.Args[4]
+        }
+
         hasDiff := false
         for _, h := range config.Handlers {
+            if handler != "" && h.Name != handler {
+                continue
+            }
             handlerStatus(h, "diff")
             add, remove := genDiff(gens, genA, genB, h)
             if ! hasDiff && (len(add) > 0 || len(remove) > 0) {
@@ -399,6 +411,63 @@ func main() {
                 eugeneMessage("Rolled back " + os.Args[2] + " generations")
             }
         } else {
+            os.Exit(1)
+        }
+    } else if os.Args[1] == "repair" {
+        dryRun := hasFlag(os.Args, "--dry-run", 2)
+
+        if doRepair(config, gens, dryRun) {
+            os.Exit(0)
+        } else {
+            os.Exit(1)
+        }        
+    } else if os.Args[1] == "storage" {
+        if os.Args[2] == "put" {
+            if len(os.Args) < 6 {
+                eugeneUsage(true, "eugene storage put <numGen> <namespace> <key> <value>")
+                eugeneUsage(true, "echo value | eugene storage put <numGen> <namespace> <key>")
+                os.Exit(1)
+            }
+            gen := genParse(gens, os.Args[3])
+            if gen == -1 {
+                eugeneError("Generation " + os.Args[3] + " is invalid or does not exist")
+                os.Exit(1)
+            }
+            ns := os.Args[4]
+            key := os.Args[5]
+            ok := false
+            if len(os.Args) == 7 {
+                ok = genStoragePut(gens, gen, ns, key, []string{os.Args[6]})
+            } else {
+                scanner := bufio.NewScanner(os.Stdin)
+                var value []string
+                for scanner.Scan() {
+                    value = append(value, scanner.Text())
+                }
+                ok = genStoragePut(gens, gen, ns, key, value)
+            }
+            if ! ok {
+                eugeneError("Error writing value")
+                os.Exit(1)
+            }
+        } else if os.Args[2] == "get" {
+            if len(os.Args) != 6 {
+                eugeneUsage(true, "eugene storage get <numGen> <namespace> <key>")
+                os.Exit(1)             
+            }
+            gen := genParse(gens, os.Args[3])
+            if gen == -1 {
+                eugeneError("Generation " + os.Args[3] + " is invalid or does not exist")
+                os.Exit(1)
+            }
+            ns := os.Args[4]
+            key := os.Args[5]
+            for _, val := range genStorageGet(gens, gen, ns, key) {
+                fmt.Println(val)
+            }
+        } else {
+            eugeneUsage(true, "eugene storage put <numGen> <namespace> <key> <value>")
+            eugeneUsage(true, "eugene storage get <numGen> <namespace> <key>")
             os.Exit(1)
         }
     } else {

@@ -67,9 +67,9 @@ func handlerRemove(h Handler, entries []string, dryRun bool) bool {
     return handlerExecEntries(h, entries, h.Remove, dryRun)
 }
 
-func handlerSetup(h Handler, gens string, dryRun bool) bool {
+func handlerSetup(h Handler, gens string, dryRun bool, repair bool) bool {
     setupFile := filepath.Join(gens, ".setup-" + h.Name)
-    if ! fileExists(setupFile) {
+    if repair || ! fileExists(setupFile) {
         if h.Setup != "" {
             handlerStatus(h, "setup")
             res := handlerExec(h.Setup, dryRun)

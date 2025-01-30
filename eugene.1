@@ -1,0 +1,226 @@
+.nh
+.TH EUGENE 1 "JANUARY 2025" Linux "User Manuals"
+
+.SH NAME
+.PP
+eugene - version your system packages (and more!) in generations
+
+
+.SH SYNOPSIS
+.PP
+\fBeugene\fP
+<\fBsubcommand\fP>
+
+
+.SH DESCRIPTION
+.PP
+eugene is a program that enables you to declare and version your system installations in generations.
+You can switch back and forth between generations, the changes will automatically be applied.
+
+.PP
+The source code can be found in the repository at https://github.com/yoannlr/eugene
+
+.PP
+The installations are managed with handlers.
+Each handler is responsible for a specific kind of installation you define: apt packages, flatpaks, gsettings values...
+
+.PP
+Everything you declare in eugene is stored in a eugene repository, usually located at \fB\fC~/.config/eugene\fR\&.
+
+
+.SH CONFIGURATION
+.PP
+Handlers are declared in eugene's configuration file, usually \fB\fC~/.config/eugene/eugene.yml\fR\&.
+
+.PP
+In the \fB\fChandlers\fR section of the configuration file, each handler is made out of the following fields:
+
+.PP
+.RS
+
+.nf
+handlers:
+  - name: handler_name
+    setup: handler setup command
+    sync: handler sync command
+    add: handler add command
+    remove: handler remove command
+    multiple: true/false
+    run_before_switch: hook command
+    run_after_switch: hook command
+
+.fi
+.RE
+
+.PP
+Here's an example for a \fB\fCapt_pkgs\fR handler:
+
+.PP
+.RS
+
+.nf
+handlers:
+  - name: apt_pkgs
+    sync: sudo apt update
+    add: sudo apt install %s
+    remove: sudo apt purge --autoremove %s
+    upgrade: sudo apt full-upgrade
+    multiple: true
+    run_before_switch: echo "$(dpkg -l | wc -l) packages on system"
+    run_after_switch: echo "now $(dpkg -l | wc -l) packages on system"
+
+.fi
+.RE
+
+.PP
+All the commands are executed as \fB\fCsh -c "command"\fR\&.
+
+.PP
+\fB\fC%s\fR in add and remove commands will be replaced with handler entries.
+
+.PP
+If multiple is set to true, \fB\fC%s\fR will be replaced with all the entries separated with a space and only one command will be run.
+Otherwise, one command will be run for each entry.
+
+.PP
+Every handler will match the files beginning with it's name in the eugene repository.
+You can also prefix the handler's name with a hostname in the repo, the handler will match these files only on the correct host.
+
+.PP
+Example with \fB\fCapt_pkgs\fR handler:
+
+.RS
+.IP \(bu 2
+\fB\fCapt_pkgs\fR: matches everywhere
+.IP \(bu 2
+\fB\fCflatpak\fR: does not match
+.IP \(bu 2
+\fB\fCapt_pkgs_libvirt\fR: matches everywhere
+.IP \(bu 2
+\fB\fCx220_apt_pkgs_i3\fR: only matches on \fB\fCx220\fR host
+
+.RE
+
+
+.SH OPTIONS
+.PP
+The following subcommands are available:
+
+.PP
+\fB\fCeugene build [comment]\fR
+  Builds a new generation with the entries of each handler.
+  You can optionnally add a description to the generation with a comment.
+  If the newly built generation does not differ from the latest, it is automatically removed.
+
+.PP
+\fB\fCeugene list\fR
+  Lists all the generations.
+  The current one is indicated with an arrow.
+
+.PP
+\fB\fCeugene diff <fromGenA> <toGenB> [handler]\fR
+  Shows the difference between two generations (what would be done if you switch from gen A to gen B).
+  If handler is specified, only shows the diff for this handler.
+
+.PP
+\fB\fCeugene switch <toGen> [--dry-run]\fR
+  Switches to a new generation, ie. performs remove and add commands for each handler according to the diff between the target generation and the current generation.
+  If \fB\fC--dry-run\fR specified, only show what would be done.
+
+.PP
+\fB\fCeugene delete <genA> [genB genC ...]\fR
+  Deletes one or more generations.
+  For consistency reasons, generation 0 and the current generation can not be deleted.
+
+.PP
+\fB\fCeugene show <gen> [handler]\fR
+  Show the entries managed by each handler in the target generation.
+  If handler is specified, only shows the entries for this handler.
+
+.PP
+\fB\fCeugene upgrade [--dry-run]\fR
+  Runs each handler upgrade command.
+
+.PP
+\fB\fCeugene apply [--dry-run]\fR
+  Equivalent to \fB\fCeugene build && eugene switch latest\fR\&.
+
+.PP
+\fB\fCeugene align [--dry-run]\fR
+  Removes gaps in generations numbers, eg \fB\fCeg. [0, 2, 3, 6] -> [0, 1, 2, 3]\fR\&.
+
+.PP
+\fB\fCeugene deletedups [--dry-run] [--align]\fR
+  Delete duplicates generations.
+  If \fB\fC--align\fR specified, aligns the generations after deleting duplicates.
+
+.PP
+\fB\fCeugene rollback [n [--dry-run]]\fR
+  Rolls back (ie. switches to) n generations ago.
+  If n is not specified, rolls back to the previous generation.
+
+.PP
+\fB\fCeugene repair [--dry-run]\fR
+  Ensures every handler entry is satisfied.
+  Equivalent to switching from generation 0 to the current one, ie. running every handler add command for every entry of the current generation.
+  Useful if an entry was changed outside of eugene.
+
+.PP
+\fB\fCeugene storage put <gen> <namespace> <key> [value]\fR
+  Stores data in the target generation.
+  If value is not specified, eugene will attempt to read from standard input.
+
+.PP
+\fB\fCeugene storage get <gen> <namespace> <key>\fR
+  Retreives data stored in the target generation.
+  If namespace/key does not match any data, returns nothing but exit code remains \fB0\fP\&.
+
+
+.SH EXIT STATUS
+.PP
+A value of \fB0\fP is returned if everything went well.
+
+.PP
+If something went wrong when performing a command, a value of \fB1\fP is returned.
+
+.PP
+If the command is incorrect (user error), a value of \fB2\fP is returned.
+
+.PP
+Exception: the diff subcommand returns \fB0\fP if the generations are identical, \fB1\fP if they differ.
+
+
+.SH ENVIRONMENT
+.PP
+eugene can be configured with the following environment variables:
+
+.PP
+\fB\fCEUGENE_REPO\fR
+  Path to configuration file and the entry files of each handler.
+  Defaults to \fB\fC${XDG_CONFIG_HOME-$HOME/.config}/eugene\fR\&.
+
+.PP
+\fB\fCEUGENE_GENS\fR
+  Internal storage for generations.
+  Defaults to \fB\fC${XDG_DATA_HOME-$HOME/.local}/state/eugene\fR
+  \fBDO NOT EDIT\fP the files in this directory.
+
+.PP
+When performing a switch operation, eugene exports the following environment variables for use in handler commands/scrips:
+
+.PP
+\fB\fCEUGENE_CURRENT_GEN\fR
+  The current generation, eg. \fB\fC1\fR\&.
+
+.PP
+\fB\fCEUGENE_TARGET_GEN\fR
+  The target generation, eg. \fB\fC2\fR\&.
+
+.PP
+\fB\fCEUGENE_HANDLER_NAME\fR
+  The name of the currently running handler, eg. \fB\fCapt_pkgs\fR\&.
+
+
+.SH AUTHORS
+.PP
+yoannlr (https://github.com/yoannlr)
