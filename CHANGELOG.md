@@ -7,6 +7,8 @@
 - `diff` subcommand now takes an optional `handler` argument
 - remove the use of `EUGENE_HOOKS` environment variable
 - add man page
+- make status codes consistent: 0 is ok, 1 is process error, 2 is command (user) error
+- prettier logging
 
 ## v2
 

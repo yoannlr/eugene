@@ -9,11 +9,18 @@ import (
 )
 
 func handlerMessage(h Handler, msg string) {
-    eugeneMessage(msg)
+    fmt.Print(blockHandler)
+    fmt.Println(msg)
 }
 
 func handlerStatus(h Handler, msg string) {
-    eugeneMessage(textCyan + "Handler " + h.Name + " :: " + msg + textReset)
+    fmt.Print(blockHandler)
+    fmt.Println(textCyan + "Handler " + textBold + h.Name + textCyan + " :: " + msg + textReset)
+}
+
+func hookMessage(msg string) {
+    fmt.Print(blockHook)
+    fmt.Println(msg)
 }
 
 func handlerExec(cmd string, dryRun bool) bool {
@@ -27,11 +34,11 @@ func handlerExec(cmd string, dryRun bool) bool {
 
 func handlerExecEntries(h Handler, entries []string, cmd string, dryRun bool) bool {
     if len(entries) < 1 {
-        handlerMessage(h, "Nothing to do")
+        handlerMessage(h, "Skipped, nothing to do")
         return true
     }
     if cmd == "" {
-        handlerMessage(h, "Command undefined")
+        handlerMessage(h, "Skipped, command undefined")
         return true
     }
     if h.Multiple {
@@ -50,7 +57,7 @@ func handlerSync(h Handler, dryRun bool) bool {
     handlerStatus(h, "sync")
     cmd := h.Sync
     if cmd == "" {
-        handlerMessage(h, "Command undefined")
+        handlerMessage(h, "Skipped, command undefined")
         return true
     } else {
         return handlerExec(cmd, dryRun)
@@ -100,10 +107,10 @@ func handlerGetEntries(gens string, num int, h Handler) []string {
 
 func handlerHook(h Handler, step string, dryRun bool) bool {
     if step == "before_switch" && h.HookPre != "" {
-        eugeneMessage(textPurple + "Running hook before_switch for handler " + h.Name + textReset)
+        hookMessage(textPurple + "Running hook " + textBold + "before_switch" + textPurple + " for handler " + h.Name + textReset)
         return handlerExec(h.HookPre, dryRun)
     } else if step == "after_switch" && h.HookPost != "" {
-        eugeneMessage(textPurple + "Running hook after_switch for handler " + h.Name + textReset)
+        hookMessage(textPurple + "Running hook " + textBold + "after_switch" + textPurple + " for handler " + h.Name + textReset)
         return handlerExec(h.HookPost, dryRun)
     }
     return true

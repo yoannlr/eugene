@@ -13,14 +13,6 @@ import (
     "gopkg.in/yaml.v2"
 )
 
-const textReset = "\033[0m"
-const textCyan = "\033[1;36m"
-const textGreen = "\033[0;32m"
-const textRed = "\033[0;31m"
-const textYellow = "\033[0;33m"
-const textPurple = "\033[1;35m"
-const textBold = "\033[1m"
-
 // utils
 
 func fileExists(f string) bool {
@@ -48,52 +40,39 @@ func hasFlag(args []string, flag string, startLookup int) bool {
 }
 
 func configInit(repo string) {
-    defaultConf := `# eugene sample configuration file
-handlers:
-  - name: apt_pkgs
-    sync: sudo apt update
-    # in add and remove commands, %s is replaced with the entries handled by the handler
-    add: sudo apt install %s
-    remove: sudo apt purge --autoremove %s
-    upgrade: sudo apt full-upgrade
-    # if multiple, add and remove commands are executed once for every entry (eg. apt install vim jq curl)
-    # else, one command is executed for each entry (eg. apt install vim, apt install jq, apt install curl)
-    multiple: true
-    # run anything before and after switching
-    # supports your shell's environment variables and eugene's environment variables
-    run_before_switch: echo "$(dpkg -l | wc -l) packages on system"
-    run_after_switch: echo "now $(dpkg -l | wc -l) packages on system"
-  - name: flatpak
-    # commands are litteraly run as sh -c "$cmd", you can therefore use && ; || $()...
-    setup: sudo apt install flatpak && flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-    add: flatpak install flathub --noninteractive %s
-    remove: flatpak uninstall --noninteractive %s; flatpak uninstall --unused --noninteractive
-    multiple: false`
-    outFile := filepath.Join(repo, "eugene.yml")
+    outFile := filepath.Join(repo, configFileName)
     os.WriteFile(outFile, []byte(defaultConf), 0644)
     eugeneMessage("Created default config file to " + outFile)
+}
+
+func manPageInstalled() bool {
+    return fileExists(filepath.Join(manDir, "eugene.1"))
 }
 
 // logging
 
 func eugeneMessage(msg string) {
-    fmt.Println(textGreen + "Info  | " + textReset + msg)
+    fmt.Print(blockInfo)
+    if msg == "" {
+        fmt.Println()
+    } else {
+        fmt.Println(textGreen + "Info. " + textReset + msg)
+    }
 }
 
 func eugeneError(msg string) {
-    fmt.Println(textRed + "Error | " + msg + textReset)
+    fmt.Print(blockError)
+    fmt.Println(textRed + "Error. " + msg + textReset)
 }
 
 func eugeneDebug(msg string) {
-    fmt.Println("Debug | " + msg)
+    fmt.Println("Debug. " + msg)
 }
 
-func eugeneUsage(showType bool, msg string) {
-    if showType {
-        fmt.Println(textRed + "Usage | " + textReset + msg)
-    } else {
-        fmt.Println("        " + msg)
-    }
+func eugeneUsage(msg string) {
+    fmt.Print(blockError)
+    fmt.Println(textRed + "Usage. " + textReset + msg)
+    os.Exit(2)
 }
 
 // main
@@ -153,61 +132,20 @@ func main() {
         eugeneMessage("Initialized generations directory to " + gens)
     }
 
+    // pour le man
+    // https://raw.githubusercontent.com/yoannlr/eugene/refs/tags/v2/handler.go
+    // TODO mettre les exit codes carre
+    // TODO reduire le volume du message d'usage et suggerer le man
+    // TODO + commande wget pour installer le man
     if len(os.Args) < 2 {
-        eugeneUsage(true, "eugene <build|list|diff|switch|delete|show|apply|align|deletedups>")
-        eugeneUsage(false, "")
-        eugeneUsage(false, textBold + "eugene build [comment]" + textReset)
-        eugeneUsage(false, "  creates a new generation with the current files from the repo")
-        eugeneUsage(false, "  the generation is automatically removed if it does not differ from the latest")
-        eugeneUsage(false, textBold + "eugene list" + textReset)
-        eugeneUsage(false, "  lists all the generations")
-        eugeneUsage(false, "  the current one is indicated with an arrow")
-        eugeneUsage(false, textBold + "eugene diff <fromGen> <toGen> [handler]" + textReset)
-        eugeneUsage(false, "  shows the difference between two generations")
-        eugeneUsage(false, "  exit code is 0 if they're the same, 1 if they're different")
-        eugeneUsage(false, textBold + "eugene switch <targetGen> [--dry-run]" + textReset)
-        eugeneUsage(false, "  switches to the target generation (sync/remove/install packages)")
-        eugeneUsage(false, textBold + "eugene delete <gen1> [gen2 gen3 ...]" + textReset)
-        eugeneUsage(false, "  deletes one or more generations")
-        eugeneUsage(false, "  deletion of the current generation and generation 0 is forbidden")
-        eugeneUsage(false, textBold + "eugene show <gen> [handler]" + textReset)
-        eugeneUsage(false, "  shows all the entries in a generation")
-        eugeneUsage(false, textBold + "eugene upgrade [--dry-run]" + textReset)
-        eugeneUsage(false, "  performs upgrade command of each handler")
-        eugeneUsage(false, textBold + "eugene apply [--dry-run]" + textReset)
-        eugeneUsage(false, "  builds a new generation and automatically switch to it")
-        eugeneUsage(false, "  equivalent to `eugene build && eugene switch latest`")
-        eugeneUsage(false, textBold + "eugene align [--dry-run]" + textReset)
-        eugeneUsage(false, "  removes gaps in generations numbers, eg. [0, 2, 3, 6] -> [0, 1, 2, 3]")
-        eugeneUsage(false, textBold + "eugene deletedups [--align] [--dry-run]" + textReset)
-        eugeneUsage(false, "  deletes duplicates generations and aligns the remaining ones if " + textBold + "--align" + textReset + " specified")
-        eugeneUsage(false, textBold + "eugene rollback [n [--dry-run]]" + textReset)
-        eugeneUsage(false, "  rolls back to the previous generation, or to n generations if specified")
-        eugeneUsage(false, textBold + "eugene repair [--dry-run]" + textReset)
-        eugeneUsage(false, "  repairs changes that were made outside of eugene")
-        eugeneUsage(false, "  every handler entry from the current generation will be applied (equivalent to switch from gen 0)")
-        eugeneUsage(false, textBold + "eugene storage put <gen> <namespace> <key> <value>" + textReset)
-        eugeneUsage(false, textBold + "echo \"$value\" | eugene storage put <gen> <namespace> <key>" + textReset)
-        eugeneUsage(false, "  stores some data in a generation (may be used to backup an initial configuration value)")
-        eugeneUsage(false, "  value may be multiline and may be read from stdin")
-        eugeneUsage(false, "  if value is empty, the key will be removed from the generation storage")
-        eugeneUsage(false, textBold + "eugene storage get <gen> <namespace> <key>" + textReset)
-        eugeneUsage(false, "  retreives stored data from a generation")
-        eugeneUsage(false, "")
-        eugeneUsage(false, "eugene can be configured with the following environment variables")
-        eugeneUsage(false, "  - EUGENE_REPO - list of entries for each handler, defaults to ${XDG_CONFIG_HOME-$HOME/.config}/eugene")
-        eugeneUsage(false, "  - EUGENE_GENS - internal storage for generations, defaults to ${XDG_DATA_HOME-$HOME/.local}/state/eugene")
-        eugeneUsage(false, "if not user-defined, these variables are automatically set by eugene at runtime")
-        eugeneUsage(false, "and can be used in your custom scripts/hooks")
-        eugeneUsage(false, "")
-        eugeneUsage(false, "during a switch operation, the following environment variables are available")
-        eugeneUsage(false, "  - EUGENE_CURRENT_GEN - the current generation, eg. `1`")
-        eugeneUsage(false, "  - EUGENE_TARGET_GEN - the target generation, eg. `2`")
-        eugeneUsage(false, "  - EUGENE_HANDLER_NAME - the name of the currently running handler, eg. `apt_pkgs`")
-        os.Exit(1)
+        fmt.Print(helpText)
+        if ! manPageInstalled() {
+            fmt.Print(manText)
+        }
+        os.Exit(2)
     }
 
-    configFile := filepath.Join(repo, "eugene.yml")
+    configFile := filepath.Join(repo, configFileName)
     if ! fileExists(configFile) {
         eugeneError("Configuration file " + configFile + " not found")
         os.Exit(1)
@@ -260,8 +198,7 @@ func main() {
         }
     } else if os.Args[1] == "diff" {
         if len(os.Args) < 4 {
-            eugeneUsage(true, "eugene diff <genA> <genB> [handler]")
-            os.Exit(1)
+            eugeneUsage("eugene diff <genA> <genB> [handler]")
         }
         
         genA := genParse(gens, os.Args[2])
@@ -312,8 +249,7 @@ func main() {
         }
     } else if os.Args[1] == "switch" {
         if len(os.Args) < 3 {
-            eugeneUsage(true, "eugene switch <targetGen> [--dry-run]")
-            os.Exit(1)
+            eugeneUsage("eugene switch <targetGen> [--dry-run]")
         }
 
         targetGen := genParse(gens, os.Args[2])
@@ -335,8 +271,7 @@ func main() {
         }
     } else if os.Args[1] == "show" {
         if len(os.Args) < 3 {
-            eugeneUsage(true, "eugene show <gen> [handler]")
-            os.Exit(1)
+            eugeneUsage("eugene show <gen> [handler]")
         }
         num := genParse(gens, os.Args[2])
         if num == -1 {
@@ -406,7 +341,7 @@ func main() {
         dryRun := hasFlag(os.Args, "--dry-run", 3)
         if doRollback(config, gens, n, dryRun) {
             if dryRun {
-                eugeneMessage("Rolled back " + os.Args[2] + " generations " + textYellow + "(dry-run)" + textReset)
+                eugeneMessage("Rolled back " + os.Args[2] + " generations " + dryRunIndicator)
             } else {
                 eugeneMessage("Rolled back " + os.Args[2] + " generations")
             }
@@ -424,9 +359,8 @@ func main() {
     } else if os.Args[1] == "storage" {
         if os.Args[2] == "put" {
             if len(os.Args) < 6 {
-                eugeneUsage(true, "eugene storage put <numGen> <namespace> <key> <value>")
-                eugeneUsage(true, "echo value | eugene storage put <numGen> <namespace> <key>")
-                os.Exit(1)
+                eugeneUsage("eugene storage put <numGen> <namespace> <key> <value>")
+                eugeneUsage("echo value | eugene storage put <numGen> <namespace> <key>")
             }
             gen := genParse(gens, os.Args[3])
             if gen == -1 {
@@ -452,8 +386,7 @@ func main() {
             }
         } else if os.Args[2] == "get" {
             if len(os.Args) != 6 {
-                eugeneUsage(true, "eugene storage get <numGen> <namespace> <key>")
-                os.Exit(1)             
+                eugeneUsage("eugene storage get <numGen> <namespace> <key>")
             }
             gen := genParse(gens, os.Args[3])
             if gen == -1 {
@@ -466,12 +399,11 @@ func main() {
                 fmt.Println(val)
             }
         } else {
-            eugeneUsage(true, "eugene storage put <numGen> <namespace> <key> <value>")
-            eugeneUsage(true, "eugene storage get <numGen> <namespace> <key>")
-            os.Exit(1)
+            eugeneUsage("eugene storage put <numGen> <namespace> <key> <value>")
+            eugeneUsage("eugene storage get <numGen> <namespace> <key>")
         }
     } else {
         eugeneError("Unknown subcommand '" + os.Args[1] + "'")
-        os.Exit(1)
+        os.Exit(2)
     }
 }

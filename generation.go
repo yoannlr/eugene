@@ -173,7 +173,7 @@ func genSwitch(config Config, gens string, targetGen int, fromGen int, dryRun bo
         if ! handlerHook(h, "after_switch", dryRun) {
             return false
         }
-        eugeneMessage("")
+        eugeneMessage("Done running handler " + h.Name)
     }
 
     if ! dryRun {

@@ -98,7 +98,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 func doSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
 	if genSwitch(config, gens, targetGen, genGetCurrent(gens), dryRun) {
 		if dryRun {
-			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen) + textYellow + " (dry run)" + textReset)
+			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen) + " " + dryRunIndicator)
 		} else {
 			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen))
 		}
@@ -114,7 +114,7 @@ func doRepair(config Config, gens string, dryRun bool) bool {
 	fromGen := 0
 	if genSwitch(config, gens, targetGen, fromGen, dryRun) {
 		if dryRun {
-			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen) + textYellow + " (dry run)" + textReset)
+			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen) + " " + dryRunIndicator)
 		} else {
 			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen))
 		}
@@ -150,7 +150,7 @@ func doAlign(gens string, dryRun bool) {
 		}
 	}
 	if dryRun {
-		eugeneMessage("Generations aligned " + textYellow + "(dry-run)" + textReset)
+		eugeneMessage("Generations aligned " + " " + dryRunIndicator)
 	} else {
 		eugeneMessage("Generations aligned")
 	}
@@ -174,7 +174,7 @@ func doDeleteDups(gens string, dryRun bool) {
 				currentGen := dryCurrent
 				latestGen := dryLatest
 				if dryRun {
-					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen) + textYellow + " (dry-run)" + textReset)
+					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen) + " " + dryRunIndicator)
 				} else {
 					currentGen = genGetCurrent(gens)
 					latestGen = genGetLatest(gens)
