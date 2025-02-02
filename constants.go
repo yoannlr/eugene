@@ -1,20 +1,5 @@
 package main
 
-const textReset = "\033[0m"
-const textCyan = "\033[0;36m"
-const textGreen = "\033[0;32m"
-const textRed = "\033[0;31m"
-const textYellow = "\033[0;33m"
-const textPurple = "\033[0;35m"
-const textBold = "\033[1m"
-
-const blockInfo = "\033[42m " + textReset + " "
-const blockHandler = "\033[46m " + textReset + " "
-const blockError = "\033[41m " + textReset + " "
-const blockHook = "\033[45m " + textReset + " "
-
-const dryRunIndicator = textYellow + "(dry-run)" + textReset
-
 const configFileName = "eugene.yml"
 
 const defaultConf = `# eugene sample configuration file

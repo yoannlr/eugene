@@ -23,7 +23,6 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 	commentRegex, _ := regexp.Compile("^#")
 	emptyLineRegex, _ := regexp.Compile("^$")
 	hostname, _ := os.Hostname()
-	eugeneMessage("System hostname is " + hostname)
 
 	hasDiff := true
 
@@ -40,7 +39,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 		var handlerFiles []string
 		for _, f := range repoFiles {
 			if filesRegex.MatchString(f.Name()) || filesRegexHostname.MatchString(f.Name()) {
-				eugeneMessage("+ include file " + f.Name())
+				logInfo("+ include file " + f.Name())
 				handlerFiles = append(handlerFiles, f.Name())
 			}
 		}
@@ -86,25 +85,22 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 
 	if hasDiff {
 		genSetLatest(gens, newGen)
-		eugeneMessage(textGreen + "Done building generation " + strconv.Itoa(newGen) + textReset)
+		logInfo(textGreen + "Done building generation " + strconv.Itoa(newGen) + textReset)
 		return true
 	} else {
 		genDelete(gens, newGen)
-		eugeneMessage("No difference with the latest generation, build removed")
+		logInfo("No difference with the latest generation, build removed")
 		return false
 	}
 }
 
 func doSwitch(config Config, gens string, targetGen int, dryRun bool) bool {
+	logAction("Attempting switch to generation " + strconv.Itoa(targetGen), dryRun)
 	if genSwitch(config, gens, targetGen, genGetCurrent(gens), dryRun) {
-		if dryRun {
-			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen) + " " + dryRunIndicator)
-		} else {
-			eugeneMessage("Switched to generation " + strconv.Itoa(targetGen))
-		}
+		logAction("Switched to generation " + strconv.Itoa(targetGen), dryRun)
 		return true
 	} else {
-		eugeneError("Switch to generation " + strconv.Itoa(targetGen) + " failed")
+		logError("Switch to generation " + strconv.Itoa(targetGen) + " failed")
 		return false
 	}
 }
@@ -113,15 +109,23 @@ func doRepair(config Config, gens string, dryRun bool) bool {
 	targetGen := genGetCurrent(gens)
 	fromGen := 0
 	if genSwitch(config, gens, targetGen, fromGen, dryRun) {
-		if dryRun {
-			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen) + " " + dryRunIndicator)
-		} else {
-			eugeneMessage("Repaired system to generation " + strconv.Itoa(targetGen))
-		}
+		logAction("Repaired system to generation " + strconv.Itoa(targetGen), dryRun)
 		return true
 	} else {
-		eugeneError("Repaired system to generation " + strconv.Itoa(targetGen) + " failed")
+		logError("Repaired system to generation " + strconv.Itoa(targetGen) + " failed")
 		return false
+	}
+}
+
+func doUpgrade(config Config, dryRun bool) {
+	logInfo("Running upgrade")
+	for _, h := range config.Handlers {
+		handlerStatus(h, "upgrade")
+		if h.Upgrade == "" {
+			handlerMessage(h, "Command undefined")
+		} else {
+			handlerExec(h.Upgrade, dryRun)
+		}
 	}
 }
 
@@ -131,7 +135,7 @@ func doAlign(gens string, dryRun bool) {
 	latestGen := genGetLatest(gens)
 	for i, g := range allGens {
 		if g != i {
-			eugeneMessage(strconv.Itoa(g) + " -> " + strconv.Itoa(i))
+			logInfo(strconv.Itoa(g) + " -> " + strconv.Itoa(i))
 			if ! dryRun {
 				genRenumber(gens, g, i)
 			}
@@ -139,21 +143,17 @@ func doAlign(gens string, dryRun bool) {
 				if ! dryRun {
 					genSetCurrent(gens, i)
 				}
-				eugeneMessage("current -> " + strconv.Itoa(i))
+				logInfo("current -> " + strconv.Itoa(i))
 			}
 			if g == latestGen {
 				if ! dryRun {
 					genSetLatest(gens, i)
 				}
-				eugeneMessage("latest -> " + strconv.Itoa(i))
+				logInfo("latest -> " + strconv.Itoa(i))
 			}
 		}
 	}
-	if dryRun {
-		eugeneMessage("Generations aligned " + " " + dryRunIndicator)
-	} else {
-		eugeneMessage("Generations aligned")
-	}
+	logAction("Generations aligned", dryRun)
 }
 
 func doDeleteDups(gens string, dryRun bool) {
@@ -173,21 +173,19 @@ func doDeleteDups(gens string, dryRun bool) {
 			for i := 0; i < len(gns) - 1; i++ {
 				currentGen := dryCurrent
 				latestGen := dryLatest
-				if dryRun {
-					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen) + " " + dryRunIndicator)
-				} else {
+				if ! dryRun {
 					currentGen = genGetCurrent(gens)
 					latestGen = genGetLatest(gens)
 					genDelete(gens, gns[i])
-					eugeneMessage("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen))
 				}
+				logAction("Deleted generation " + strconv.Itoa(gns[i]) + " because it's identical to generation " + strconv.Itoa(keepGen), dryRun)
 				if gns[i] == currentGen {
 					if ! dryRun {
 						genSetCurrent(gens, keepGen)
 					} else {
 						dryCurrent = keepGen
 					}
-					eugeneMessage("current -> " + strconv.Itoa(keepGen))
+					logInfo("current -> " + strconv.Itoa(keepGen))
 				}
 				if gns[i] == latestGen {
 					if ! dryRun {
@@ -195,7 +193,7 @@ func doDeleteDups(gens string, dryRun bool) {
 					} else {
 						dryLatest = keepGen
 					}
-					eugeneMessage("latest -> " + strconv.Itoa(keepGen))
+					logInfo("latest -> " + strconv.Itoa(keepGen))
 				}
 			}
 		}
@@ -215,11 +213,11 @@ func doRollback(config Config, gens string, n int, dryRun bool) bool {
         }
     }
     if currentIndex + n >= len(allGens) {
-        eugeneError("Not enough generations to rollback " + strconv.Itoa(n) + " generations ago")
+        logError("Not enough generations to rollback " + strconv.Itoa(n) + " generations ago")
         return false
     }
     target := allGens[currentIndex + n]
-    eugeneMessage("Rolling back to generation " + strconv.Itoa(target))
+    logAction("Rolling back to generation " + strconv.Itoa(target), dryRun)
     genSwitch(config, gens, target, genGetCurrent(gens), dryRun)
     return true
 }

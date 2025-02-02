@@ -9,23 +9,16 @@ import (
 )
 
 func handlerMessage(h Handler, msg string) {
-    fmt.Print(blockHandler)
-    fmt.Println(msg)
+    logHandler(h.Name, msg)
 }
 
-func handlerStatus(h Handler, msg string) {
-    fmt.Print(blockHandler)
-    fmt.Println(textCyan + "Handler " + textBold + h.Name + textCyan + " :: " + msg + textReset)
-}
-
-func hookMessage(msg string) {
-    fmt.Print(blockHook)
-    fmt.Println(msg)
+func handlerStatus(h Handler, status string) {
+    logHandler(h.Name, "Running " + textBold + status)
 }
 
 func handlerExec(cmd string, dryRun bool) bool {
+    logCommand(cmd, dryRun)
     if dryRun {
-        fmt.Println(cmd + textYellow + " (dry run)" + textReset)
         return true
     } else {
         return commandExec(cmd)
@@ -34,11 +27,11 @@ func handlerExec(cmd string, dryRun bool) bool {
 
 func handlerExecEntries(h Handler, entries []string, cmd string, dryRun bool) bool {
     if len(entries) < 1 {
-        handlerMessage(h, "Skipped, nothing to do")
+        handlerMessage(h, ">> Skipped, nothing to do")
         return true
     }
     if cmd == "" {
-        handlerMessage(h, "Skipped, command undefined")
+        handlerMessage(h, ">> Skipped, command undefined")
         return true
     }
     if h.Multiple {
@@ -57,7 +50,7 @@ func handlerSync(h Handler, dryRun bool) bool {
     handlerStatus(h, "sync")
     cmd := h.Sync
     if cmd == "" {
-        handlerMessage(h, "Skipped, command undefined")
+        handlerMessage(h, ">> Skipped, command undefined")
         return true
     } else {
         return handlerExec(cmd, dryRun)
@@ -105,12 +98,17 @@ func handlerGetEntries(gens string, num int, h Handler) []string {
     return entries
 }
 
-func handlerHook(h Handler, step string, dryRun bool) bool {
-    if step == "before_switch" && h.HookPre != "" {
-        hookMessage(textPurple + "Running hook " + textBold + "before_switch" + textPurple + " for handler " + h.Name + textReset)
+func handlerPreSwitch(h Handler, dryRun bool) bool {
+    if h.HookPre != "" {
+        handlerStatus(h, "pre-switch command")
         return handlerExec(h.HookPre, dryRun)
-    } else if step == "after_switch" && h.HookPost != "" {
-        hookMessage(textPurple + "Running hook " + textBold + "after_switch" + textPurple + " for handler " + h.Name + textReset)
+    }
+    return true
+}
+
+func handlerPostSwitch(h Handler, dryRun bool) bool {
+    if h.HookPost != "" {
+        handlerStatus(h, "post-switch command")
         return handlerExec(h.HookPost, dryRun)
     }
     return true

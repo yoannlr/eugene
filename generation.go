@@ -110,19 +110,21 @@ func genGetComment(gens string, num int) string {
     return ""
 }
 
+// todo genDelete = uniquement suppression
+// bouger les messages dans doDelete
 func genDelete(gens string, num int) bool {
     if num == 0 {
-        eugeneError("Deleting generation 0 is forbidden")
+        logError("Deleting generation 0 is forbidden")
         return false
     }
 
     if num == genGetCurrent(gens) {
-        eugeneError("Deleting the current generation is forbidden")
+        logError("Deleting the current generation is forbidden")
         return false
     }
 
     if ! genExists(gens, num) {
-        eugeneError("Generation " + strconv.Itoa(num) + " does not exist")
+        logError("Generation " + strconv.Itoa(num) + " does not exist")
         return false
     }
     
@@ -133,11 +135,11 @@ func genDelete(gens string, num int) bool {
             // on tombe sur la generation 0 au bout d'un moment
         }
         genSetLatest(gens, prevGen)
-        eugeneMessage("The latest generation is now " + strconv.Itoa(prevGen))
+        logInfo("The latest generation is now " + strconv.Itoa(prevGen))
     }
 
     os.RemoveAll(genGetPath(gens, num))
-    eugeneMessage("Deleted generation " + strconv.Itoa(num))
+    logInfo("Deleted generation " + strconv.Itoa(num))
 
     return true
 }
@@ -159,7 +161,9 @@ func genSwitch(config Config, gens string, targetGen int, fromGen int, dryRun bo
         if ! handlerSetup(h, gens, dryRun, repair) {
             return false
         }
-        handlerHook(h, "before_switch", dryRun)
+        if ! handlerPreSwitch(h, dryRun) {
+            return false
+        }
         if ! handlerSync(h, dryRun) {
             return false
         }
@@ -170,10 +174,9 @@ func genSwitch(config Config, gens string, targetGen int, fromGen int, dryRun bo
         if ! handlerAdd(h, add, dryRun) {
             return false
         }
-        if ! handlerHook(h, "after_switch", dryRun) {
+        if ! handlerPostSwitch(h, dryRun) {
             return false
         }
-        eugeneMessage("Done running handler " + h.Name)
     }
 
     if ! dryRun {
@@ -254,7 +257,7 @@ func genStoragePut(gens string, num int, namespace string, key string, value []s
             os.Remove(keyPath)
             nsContent, _ := os.ReadDir(storagePath)
             if len(nsContent) == 0 {
-                eugeneMessage("Namespace " + namespace + " now empty, deleting from generation")
+                logInfo("Namespace " + namespace + " now empty, deleting from generation")
                 os.Remove(storagePath)
             }
         }

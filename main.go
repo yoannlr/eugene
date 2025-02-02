@@ -42,37 +42,11 @@ func hasFlag(args []string, flag string, startLookup int) bool {
 func configInit(repo string) {
     outFile := filepath.Join(repo, configFileName)
     os.WriteFile(outFile, []byte(defaultConf), 0644)
-    eugeneMessage("Created default config file to " + outFile)
+    logInfo("Created default config file to " + outFile)
 }
 
 func manPageInstalled() bool {
     return fileExists(filepath.Join(manDir, "eugene.1"))
-}
-
-// logging
-
-func eugeneMessage(msg string) {
-    fmt.Print(blockInfo)
-    if msg == "" {
-        fmt.Println()
-    } else {
-        fmt.Println(textGreen + "Info. " + textReset + msg)
-    }
-}
-
-func eugeneError(msg string) {
-    fmt.Print(blockError)
-    fmt.Println(textRed + "Error. " + msg + textReset)
-}
-
-func eugeneDebug(msg string) {
-    fmt.Println("Debug. " + msg)
-}
-
-func eugeneUsage(msg string) {
-    fmt.Print(blockError)
-    fmt.Println(textRed + "Usage. " + textReset + msg)
-    os.Exit(2)
 }
 
 // main
@@ -107,7 +81,7 @@ func main() {
     }
     if ! fileExists(repo) {
         os.Mkdir(repo, os.ModePerm)
-        eugeneMessage("Initialized new repository to " + repo)
+        logInfo("Initialized new repository to " + repo)
         configInit(repo)
     }
 
@@ -129,14 +103,9 @@ func main() {
         genCreate(gens, 0, "Empty generation (automatically created)")
         genSetCurrent(gens, 0)
         genSetLatest(gens, 0)
-        eugeneMessage("Initialized generations directory to " + gens)
+        logInfo("Initialized generations directory to " + gens)
     }
 
-    // pour le man
-    // https://raw.githubusercontent.com/yoannlr/eugene/refs/tags/v2/handler.go
-    // TODO mettre les exit codes carre
-    // TODO reduire le volume du message d'usage et suggerer le man
-    // TODO + commande wget pour installer le man
     if len(os.Args) < 2 {
         fmt.Print(helpText)
         if ! manPageInstalled() {
@@ -147,7 +116,7 @@ func main() {
 
     configFile := filepath.Join(repo, configFileName)
     if ! fileExists(configFile) {
-        eugeneError("Configuration file " + configFile + " not found")
+        logError("Configuration file " + configFile + " not found")
         os.Exit(1)
     }
 
@@ -191,24 +160,24 @@ func main() {
             for _, g := range deleteGens {
                 num := genParse(gens, g)
                 if ! genDelete(gens, num) {
-                    eugeneError("Error deleting generation " + g)
+                    logError("Error deleting generation " + g)
                     os.Exit(1)
                 }
             }
         }
     } else if os.Args[1] == "diff" {
         if len(os.Args) < 4 {
-            eugeneUsage("eugene diff <genA> <genB> [handler]")
+            logUsage("eugene diff <genA> <genB> [handler]")
         }
         
         genA := genParse(gens, os.Args[2])
         genB := genParse(gens, os.Args[3])
         if genA == -1 {
-            eugeneError("Generation " + os.Args[2] + " is invalid or does not exist")
+            logError("Generation " + os.Args[2] + " is invalid or does not exist")
             os.Exit(2)
         }
         if genB == -1 {
-            eugeneError("Generation " + os.Args[3] + " is invalid or does not exist")
+            logError("Generation " + os.Args[3] + " is invalid or does not exist")
             os.Exit(2)
         }
 
@@ -241,24 +210,24 @@ func main() {
         }
 
         if hasDiff {
-            eugeneMessage("Generations differ")
+            logInfo("Generations differ")
             os.Exit(1)
         } else {
-            eugeneMessage("Generations are identical")
+            logInfo("Generations are identical")
             os.Exit(0)
         }
     } else if os.Args[1] == "switch" {
         if len(os.Args) < 3 {
-            eugeneUsage("eugene switch <targetGen> [--dry-run]")
+            logUsage("eugene switch <targetGen> [--dry-run]")
         }
 
         targetGen := genParse(gens, os.Args[2])
         if targetGen == -1 {
-            eugeneError("The target generation is invalid or does not exist")
+            logError("The target generation is invalid or does not exist")
             os.Exit(1)
         }
         if targetGen == genGetCurrent(gens) {
-            eugeneError("Switching to the current generation makes no sense")
+            logError("Switching to the current generation makes no sense")
             os.Exit(1)
         }
 
@@ -271,11 +240,11 @@ func main() {
         }
     } else if os.Args[1] == "show" {
         if len(os.Args) < 3 {
-            eugeneUsage("eugene show <gen> [handler]")
+            logUsage("eugene show <gen> [handler]")
         }
         num := genParse(gens, os.Args[2])
         if num == -1 {
-            eugeneError("Generation '" + os.Args[2] + "' is invalid or does not exist")
+            logError("Generation '" + os.Args[2] + "' is invalid or does not exist")
             os.Exit(1)
         }
         handler := ""
@@ -301,22 +270,15 @@ func main() {
         }
     } else if os.Args[1] == "upgrade" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
-        eugeneMessage("Running upgrade")
-        for _, h := range config.Handlers {
-            handlerStatus(h, "upgrade")
-            if h.Upgrade == "" {
-                handlerMessage(h, "Command undefined")
-            } else {
-                handlerExec(h.Upgrade, dryRun)
-            }
-        }
+        doUpgrade(config, dryRun)
     } else if os.Args[1] == "apply" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
         if doBuild(make([]string, 0), repo, gens, config) {
             latestGen := genGetLatest(gens)
+            logInfo("Switching to newly built generation")
             doSwitch(config, gens, latestGen, dryRun)
         } else {
-            eugeneMessage("Therefore not switching")
+            logInfo("Switch canceled")
         }
     } else if os.Args[1] == "align" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
@@ -324,9 +286,9 @@ func main() {
     } else if os.Args[1] == "deletedups" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
         doDeleteDups(gens, dryRun)
-        eugeneMessage("Duplicate generations deleted")
+        logInfo("Duplicate generations deleted")
         if hasFlag(os.Args, "--align", 2) {
-            eugeneMessage("Now aligning")
+            logInfo("Now aligning")
             doAlign(gens, dryRun)
         }
     } else if os.Args[1] == "rollback" {
@@ -334,17 +296,13 @@ func main() {
         if len(os.Args) >= 3 {
             num, err := strconv.Atoi(os.Args[2])
             if err != nil {
-                eugeneError(os.Args[2] + " is an invalid number for parameter `n`")
+                logError(os.Args[2] + " is an invalid number for parameter `n`")
             }
             n = num
         }
         dryRun := hasFlag(os.Args, "--dry-run", 3)
         if doRollback(config, gens, n, dryRun) {
-            if dryRun {
-                eugeneMessage("Rolled back " + os.Args[2] + " generations " + dryRunIndicator)
-            } else {
-                eugeneMessage("Rolled back " + os.Args[2] + " generations")
-            }
+            logAction("Rolled back " + os.Args[2] + " generations", dryRun)
         } else {
             os.Exit(1)
         }
@@ -359,12 +317,12 @@ func main() {
     } else if os.Args[1] == "storage" {
         if os.Args[2] == "put" {
             if len(os.Args) < 6 {
-                eugeneUsage("eugene storage put <numGen> <namespace> <key> <value>")
-                eugeneUsage("echo value | eugene storage put <numGen> <namespace> <key>")
+                logUsage("eugene storage put <numGen> <namespace> <key> <value>")
+                logUsage("echo value | eugene storage put <numGen> <namespace> <key>")
             }
             gen := genParse(gens, os.Args[3])
             if gen == -1 {
-                eugeneError("Generation " + os.Args[3] + " is invalid or does not exist")
+                logError("Generation " + os.Args[3] + " is invalid or does not exist")
                 os.Exit(1)
             }
             ns := os.Args[4]
@@ -381,16 +339,16 @@ func main() {
                 ok = genStoragePut(gens, gen, ns, key, value)
             }
             if ! ok {
-                eugeneError("Error writing value")
+                logError("Error writing value")
                 os.Exit(1)
             }
         } else if os.Args[2] == "get" {
             if len(os.Args) != 6 {
-                eugeneUsage("eugene storage get <numGen> <namespace> <key>")
+                logUsage("eugene storage get <numGen> <namespace> <key>")
             }
             gen := genParse(gens, os.Args[3])
             if gen == -1 {
-                eugeneError("Generation " + os.Args[3] + " is invalid or does not exist")
+                logError("Generation " + os.Args[3] + " is invalid or does not exist")
                 os.Exit(1)
             }
             ns := os.Args[4]
@@ -399,11 +357,11 @@ func main() {
                 fmt.Println(val)
             }
         } else {
-            eugeneUsage("eugene storage put <numGen> <namespace> <key> <value>")
-            eugeneUsage("eugene storage get <numGen> <namespace> <key>")
+            logUsage("eugene storage put <numGen> <namespace> <key> <value>")
+            logUsage("eugene storage get <numGen> <namespace> <key>")
         }
     } else {
-        eugeneError("Unknown subcommand '" + os.Args[1] + "'")
+        logError("Unknown subcommand '" + os.Args[1] + "'")
         os.Exit(2)
     }
 }
