@@ -157,6 +157,9 @@ func genSwitch(config Config, gens string, targetGen int, fromGen int, dryRun bo
     os.Setenv("EUGENE_TARGET_GEN", strconv.Itoa(targetGen))
     repair := (fromGen == 0)
     for _, h := range config.Handlers {
+        if ! handlerShouldRun(h) {
+            continue
+        }
         os.Setenv("EUGENE_HANDLER_NAME", h.Name)
         if ! handlerSetup(h, gens, dryRun, repair) {
             return false

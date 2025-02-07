@@ -31,6 +31,7 @@ In the `handlers` section of the configuration file, each handler is made out of
 ```
 handlers:
   - name: handler_name
+    run_if: command that determines if the handler will run
     setup: handler setup command
     sync: handler sync command
     add: handler add command
@@ -45,6 +46,7 @@ Here's an example for a `apt_pkgs` handler:
 ```
 handlers:
   - name: apt_pkgs
+    run_if: which apt > /dev/null
     sync: sudo apt update
     add: sudo apt install %s
     remove: sudo apt purge --autoremove %s

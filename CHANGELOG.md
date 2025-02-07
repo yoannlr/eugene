@@ -9,6 +9,7 @@
 - add man page
 - make status codes consistent: 0 is ok, 1 is process error, 2 is command (user) error
 - prettier logging
+- add `run_if` parameter in handler config: the handler will only trigger if the command is successful
 
 ## v2
 

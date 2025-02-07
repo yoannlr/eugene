@@ -8,14 +8,6 @@ import (
     "path/filepath"
 )
 
-func handlerMessage(h Handler, msg string) {
-    logHandler(h.Name, msg)
-}
-
-func handlerStatus(h Handler, status string) {
-    logHandler(h.Name, "Running " + textBold + status)
-}
-
 func handlerExec(cmd string, dryRun bool) bool {
     logCommand(cmd, dryRun)
     if dryRun {
@@ -27,11 +19,11 @@ func handlerExec(cmd string, dryRun bool) bool {
 
 func handlerExecEntries(h Handler, entries []string, cmd string, dryRun bool) bool {
     if len(entries) < 1 {
-        handlerMessage(h, ">> Skipped, nothing to do")
+        logHandler(h.Name, ">> Skipped, nothing to do")
         return true
     }
     if cmd == "" {
-        handlerMessage(h, ">> Skipped, command undefined")
+        logHandler(h.Name, ">> Skipped, command undefined")
         return true
     }
     if h.Multiple {
@@ -47,10 +39,10 @@ func handlerExecEntries(h Handler, entries []string, cmd string, dryRun bool) bo
 }
 
 func handlerSync(h Handler, dryRun bool) bool {
-    handlerStatus(h, "sync")
+    logHandler(h.Name, "Synchronizing")
     cmd := h.Sync
     if cmd == "" {
-        handlerMessage(h, ">> Skipped, command undefined")
+        logHandler(h.Name, ">> Skipped, command undefined")
         return true
     } else {
         return handlerExec(cmd, dryRun)
@@ -58,20 +50,27 @@ func handlerSync(h Handler, dryRun bool) bool {
 }
 
 func handlerAdd(h Handler, entries []string, dryRun bool) bool {
-    handlerStatus(h, "add")
+    logHandler(h.Name, "Adding new entries")
     return handlerExecEntries(h, entries, h.Add, dryRun)
 }
 
 func handlerRemove(h Handler, entries []string, dryRun bool) bool {
-    handlerStatus(h, "remove")
+    logHandler(h.Name, "Removing previous entries")
     return handlerExecEntries(h, entries, h.Remove, dryRun)
+}
+
+func handlerShouldRun(h Handler) bool {
+    if h.RunIf == "" {
+        return true
+    }
+    return commandExec(h.RunIf)
 }
 
 func handlerSetup(h Handler, gens string, dryRun bool, repair bool) bool {
     setupFile := filepath.Join(gens, ".setup-" + h.Name)
     if repair || ! fileExists(setupFile) {
         if h.Setup != "" {
-            handlerStatus(h, "setup")
+            logHandler(h.Name, "Setting up")
             res := handlerExec(h.Setup, dryRun)
             if ! dryRun && res {
                 os.Create(setupFile)
@@ -100,7 +99,7 @@ func handlerGetEntries(gens string, num int, h Handler) []string {
 
 func handlerPreSwitch(h Handler, dryRun bool) bool {
     if h.HookPre != "" {
-        handlerStatus(h, "pre-switch command")
+        logHandler(h.Name, "Running pre-switch command")
         return handlerExec(h.HookPre, dryRun)
     }
     return true
@@ -108,8 +107,18 @@ func handlerPreSwitch(h Handler, dryRun bool) bool {
 
 func handlerPostSwitch(h Handler, dryRun bool) bool {
     if h.HookPost != "" {
-        handlerStatus(h, "post-switch command")
+        logHandler(h.Name, "Running post-switch command")
         return handlerExec(h.HookPost, dryRun)
     }
     return true
+}
+
+func handlerUpgrade(h Handler, dryRun bool) bool {
+    logHandler(h.Name, "Upgrading")
+    if h.Upgrade == "" {
+        logHandler(h.Name, "Command undefined")
+        return true
+    } else {
+        return handlerExec(h.Upgrade, dryRun)
+    }
 }

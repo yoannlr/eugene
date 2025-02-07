@@ -53,6 +53,7 @@ func manPageInstalled() bool {
 
 type Handler struct {
     Name string `yaml:"name"`
+    RunIf string `yaml:"run_if"`
     Add string `yaml:"add"`
     Remove string `yaml:"remove"`
     Sync string `yaml:"sync"`
@@ -191,20 +192,25 @@ func main() {
             if handler != "" && h.Name != handler {
                 continue
             }
-            handlerStatus(h, "diff")
-            add, remove := genDiff(gens, genA, genB, h)
-            if ! hasDiff && (len(add) > 0 || len(remove) > 0) {
-                hasDiff = true
+            if ! handlerShouldRun(h) {
+                continue
             }
-            if h.Multiple {
-                fmt.Println(textRed + "- " + strings.Join(remove, " ") + textReset)
-                fmt.Println(textGreen + "+ " + strings.Join(add, " ") + textReset)
-            } else {
-                for _, entry := range remove {
-                    fmt.Println(textRed + "- " + entry + textReset)
+            logHandler(h.Name, "Showing diff between " + os.Args[2] + " and " + os.Args[3])
+            add, remove := genDiff(gens, genA, genB, h)
+            if len(add) > 0 || len(remove) > 0 {
+                if h.Multiple {
+                    fmt.Println(textRed + "- " + strings.Join(remove, " ") + textReset)
+                    fmt.Println(textGreen + "+ " + strings.Join(add, " ") + textReset)
+                } else {
+                    for _, entry := range remove {
+                        fmt.Println(textRed + "- " + entry + textReset)
+                    }
+                    for _, entry := range add {
+                        fmt.Println(textGreen + "+ " + entry + textReset)
+                    }
                 }
-                for _, entry := range add {
-                    fmt.Println(textGreen + "+ " + entry + textReset)
+                if ! hasDiff {
+                    hasDiff = true
                 }
             }
         }
@@ -256,7 +262,10 @@ func main() {
             if handler != "" && h.Name != handler {
                 continue
             }
-            handlerStatus(h, "show")
+            if ! handlerShouldRun(h) {
+                continue
+            }
+            logHandler(h.Name, "Showing entries for generation " + os.Args[2])
             entries := handlerGetEntries(gens, num, h)
             if len(entries) > 0 {
                 if h.Multiple {
@@ -270,7 +279,9 @@ func main() {
         }
     } else if os.Args[1] == "upgrade" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
-        doUpgrade(config, dryRun)
+        if ! doUpgrade(config, dryRun) {
+            logError("Upgrade failed")
+        }
     } else if os.Args[1] == "apply" {
         dryRun := hasFlag(os.Args, "--dry-run", 2)
         if doBuild(make([]string, 0), repo, gens, config) {

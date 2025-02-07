@@ -29,7 +29,10 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 	genHash := sha256.New()
 
 	for _, h := range config.Handlers {
-		handlerStatus(h, "build")
+		if ! handlerShouldRun(h) {
+			continue
+		}
+		logHandler(h.Name, "Calculating new entries")
 
 		// trouver les fichiers a inclure
 		filesRegex, _ := regexp.Compile(fmt.Sprintf("^%s.*$", h.Name))
@@ -39,7 +42,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 		var handlerFiles []string
 		for _, f := range repoFiles {
 			if filesRegex.MatchString(f.Name()) || filesRegexHostname.MatchString(f.Name()) {
-				logInfo("+ include file " + f.Name())
+				logHandler(h.Name, "+ include file " + f.Name())
 				handlerFiles = append(handlerFiles, f.Name())
 			}
 		}
@@ -85,7 +88,7 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 
 	if hasDiff {
 		genSetLatest(gens, newGen)
-		logInfo(textGreen + "Done building generation " + strconv.Itoa(newGen) + textReset)
+		logInfo("Done building generation " + strconv.Itoa(newGen))
 		return true
 	} else {
 		genDelete(gens, newGen)
@@ -117,16 +120,17 @@ func doRepair(config Config, gens string, dryRun bool) bool {
 	}
 }
 
-func doUpgrade(config Config, dryRun bool) {
+func doUpgrade(config Config, dryRun bool) bool {
 	logInfo("Running upgrade")
 	for _, h := range config.Handlers {
-		handlerStatus(h, "upgrade")
-		if h.Upgrade == "" {
-			handlerMessage(h, "Command undefined")
-		} else {
-			handlerExec(h.Upgrade, dryRun)
+		if ! handlerShouldRun(h) {
+			continue
+		}
+		if ! handlerUpgrade(h, dryRun) {
+			return false
 		}
 	}
+	return true
 }
 
 func doAlign(gens string, dryRun bool) {
