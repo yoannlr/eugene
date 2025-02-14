@@ -14,19 +14,19 @@ const textBold = "\033[1m"
 const dryRunIndicator = textYellow + "(dry-run)" + textReset
 
 func logInfo(msg string) {
-	fmt.Println(textGreen + "[info] " + textReset + msg + textReset)
+	fmt.Println(textGreen + textBold + "info: " + textReset + msg + textReset)
 }
 
 func logUsage(msg string) {
-	fmt.Println(textRed + "[usage] " + textReset + msg + textReset)
+	fmt.Println(textRed + textBold + "usage: " + textReset + msg + textReset)
 }
 
 func logError(msg string) {
-	fmt.Println(textRed + "[error] " + msg + textReset)
+	fmt.Println(textRed + textBold + "error: " + msg + textReset)
 }
 
 func logHandler(name string, msg string) {
-	fmt.Println(textCyan + "[handler " + name + "] " + textReset + msg + textReset)
+	fmt.Println(textCyan + textBold + "handler/" + name + ": " + textReset + msg + textReset)
 }
 
 func logAction(msg string, dryRun bool) {
