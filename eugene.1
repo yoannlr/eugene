@@ -31,6 +31,7 @@ Everything you declare in eugene is stored in a eugene repository, usually locat
 .SH CONFIGURATION
 .PP
 Handlers are declared in eugene's configuration file, usually \fB\fC~/.config/eugene/eugene.yml\fR\&.
+eugene will generate a sample config file for you on it's first execution.
 
 .PP
 In the \fB\fChandlers\fR section of the configuration file, each handler is made out of the following fields:
@@ -42,7 +43,11 @@ In the \fB\fChandlers\fR section of the configuration file, each handler is made
 handlers:
   - name: handler_name
     run_if: command that determines if the handler will run
-    setup: handler setup command
+    setup:
+      - when: command to detect a specific environment
+        run: setup command for that environment
+      - when: command to detect a specific environment
+        run: setup command for that environment
     sync: handler sync command
     add: handler add command
     remove: handler remove command

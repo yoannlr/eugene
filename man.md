@@ -25,6 +25,7 @@ Everything you declare in eugene is stored in a eugene repository, usually locat
 # CONFIGURATION
 
 Handlers are declared in eugene's configuration file, usually `~/.config/eugene/eugene.yml`.
+eugene will generate a sample config file for you on it's first execution.
 
 In the `handlers` section of the configuration file, each handler is made out of the following fields:
 
@@ -32,7 +33,11 @@ In the `handlers` section of the configuration file, each handler is made out of
 handlers:
   - name: handler_name
     run_if: command that determines if the handler will run
-    setup: handler setup command
+    setup:
+      - when: command to detect a specific environment
+        run: setup command for that environment
+      - when: command to detect a specific environment
+        run: setup command for that environment
     sync: handler sync command
     add: handler add command
     remove: handler remove command

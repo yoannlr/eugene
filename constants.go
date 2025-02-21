@@ -16,10 +16,14 @@ handlers:
     # run anything before and after switching
     # supports your shell's environment variables and eugene's environment variables
     run_before_switch: echo "$(dpkg -l | wc -l) packages on system"
+    # commands are litteraly run as sh -c "$cmd", you can therefore use && ; || $()...
     run_after_switch: echo "now $(dpkg -l | wc -l) packages on system"
   - name: flatpak
-    # commands are litteraly run as sh -c "$cmd", you can therefore use && ; || $()...
-    setup: sudo apt install flatpak && flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+    setup:
+      - when: which apt > /dev/null
+        run: sudo apt install flatpak && flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - when: which pacman > /dev/null
+        run: sudo pacman -S flatpak && flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
     add: flatpak install flathub --noninteractive %s
     remove: flatpak uninstall --noninteractive %s; flatpak uninstall --unused --noninteractive
     multiple: false`

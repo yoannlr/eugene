@@ -69,13 +69,24 @@ func handlerShouldRun(h Handler) bool {
 func handlerSetup(h Handler, gens string, dryRun bool, repair bool) bool {
     setupFile := filepath.Join(gens, ".setup-" + h.Name)
     if repair || ! fileExists(setupFile) {
-        if h.Setup != "" {
+        if h.Setup != nil {
             logHandler(h.Name, "Setting up")
-            res := handlerExec(h.Setup, dryRun)
-            if ! dryRun && res {
+
+            success := false
+            for _, setup := range h.Setup {
+                if commandExec(setup.When) {
+                    success = handlerExec(setup.Run, dryRun)
+                    break
+                }
+            }
+
+            if ! success {
+                return false
+            }
+
+            if ! dryRun {
                 os.Create(setupFile)
             }
-            return res
         }
     }
     return true

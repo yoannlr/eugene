@@ -51,6 +51,11 @@ func manPageInstalled() bool {
 
 // main
 
+type RunWhen struct {
+    When string `yaml:"when"`
+    Run string `yaml:"run"`
+}
+
 type Handler struct {
     Name string `yaml:"name"`
     RunIf string `yaml:"run_if"`
@@ -59,7 +64,7 @@ type Handler struct {
     Sync string `yaml:"sync"`
     Upgrade string `yaml:"upgrade"`
     Multiple bool `yaml:"multiple"`
-    Setup string `yaml:"setup"`
+    Setup []RunWhen `yaml:"setup"`
     HookPre string `yaml:"run_before_switch"`
     HookPost string `yaml:"run_after_switch"`
 }
