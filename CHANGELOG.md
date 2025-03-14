@@ -10,6 +10,8 @@
 - make status codes consistent: 0 is ok, 1 is process error, 2 is command (user) error
 - prettier logging
 - add `run_if` parameter in handler config: the handler will only trigger if the command is successful
+- conditional setup commands for handlers with `when/run` pairs
+   - can be used to install flatpak with apt or with pacman depending on distro, for example
 
 ## v2
 

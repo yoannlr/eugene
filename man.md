@@ -87,9 +87,10 @@ The following subcommands are available:
   You can optionnally add a description to the generation with a comment.
   If the newly built generation does not differ from the latest, it is automatically removed.
 
-`eugene list`
+`eugene list [--with-hash]`
   Lists all the generations.
   The current one is indicated with an arrow.
+  If `--with-hash` specified, shows the generation's hash.
 
 `eugene diff <fromGenA> <toGenB> [handler]`
   Shows the difference between two generations (what would be done if you switch from gen A to gen B).
@@ -117,7 +118,7 @@ The following subcommands are available:
   Removes gaps in generations numbers, eg `eg. [0, 2, 3, 6] -> [0, 1, 2, 3]`.
 
 `eugene deletedups [--dry-run] [--align]`
-  Delete duplicates generations.
+  Delete duplicates generations based on hashes.
   If `--align` specified, aligns the generations after deleting duplicates.
 
 `eugene rollback [n [--dry-run]]`

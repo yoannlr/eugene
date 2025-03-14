@@ -7,6 +7,8 @@ import (
     "slices"
     "bufio"
     "regexp"
+    "crypto/sha256"
+    "fmt"
 )
 
 func genCreate(gens string, num int, comment string) string {
@@ -210,30 +212,33 @@ func genRenumber(gens string, old int, new int) {
 }
 
 func genGetHash(gens string, num int) string {
-    if num == 0 {
-        // todo gen 0 n'a pas de hash
-        return ""
-    }
     if ! genExists(gens, num) {
         return ""
     }
-    hashFile, err := os.Open(filepath.Join(gens, strconv.Itoa(num), "_hash"))
-    if err != nil {
-        return ""
-    }
 
-    hash := ""
-    scanner := bufio.NewScanner(hashFile)
-    for scanner.Scan() {
-        hash = scanner.Text()
-        // hash sur la premiere ligne uniquement
-        break
-    }
-    hashFile.Close()
+    genHash := sha256.New()
 
-    //eugeneMessage("Hash for generation " + strconv.Itoa(num) + " is " + hash)
+    filepath.Walk(filepath.Join(gens, strconv.Itoa(num)), func(path string, info os.FileInfo, err error) error {
+        if err != nil {
+            panic(err)
+        }
+        if ! info.IsDir() {
+            if filepath.Base(path) != "_comment" {
+                f, err := os.Open(path)
+                if err != nil {
+                    panic(err)
+                }
+                scanner := bufio.NewScanner(f)
+                for scanner.Scan() {
+                    genHash.Write([]byte(scanner.Text()))
+                }
+                f.Close()
+            }
+        }
+        return nil
+    })
 
-    return hash
+    return fmt.Sprintf("%x", genHash.Sum(nil))
 }
 
 func genStoragePut(gens string, num int, namespace string, key string, value []string) bool {

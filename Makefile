@@ -6,7 +6,7 @@ man:
 build:
 	$(GO) build
 clean:
-	rm eugene eugene.1
+	rm eugene
 install: build man
 	cp eugene /usr/local/bin/
 	mkdir -p /usr/local/share/man/man1

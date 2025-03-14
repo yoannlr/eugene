@@ -131,6 +131,7 @@ func main() {
     yaml.Unmarshal(data, &config)
 
     if os.Args[1] == "list" {
+        showHash := hasFlag(os.Args, "--with-hash", 2)
         allGens := genGetAll(gens)
         currentGen := genGetCurrent(gens)
         for _, num := range allGens {
@@ -141,6 +142,10 @@ func main() {
             }
 
             fmt.Print(" " + strconv.Itoa(num) + " ")
+
+            if showHash {
+                fmt.Print(genGetHash(gens, num) + " - ")
+            }
 
             comment := genGetComment(gens, num)
 

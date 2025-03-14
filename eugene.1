@@ -120,9 +120,10 @@ The following subcommands are available:
   If the newly built generation does not differ from the latest, it is automatically removed.
 
 .PP
-\fB\fCeugene list\fR
+\fB\fCeugene list [--with-hash]\fR
   Lists all the generations.
   The current one is indicated with an arrow.
+  If \fB\fC--with-hash\fR specified, shows the generation's hash.
 
 .PP
 \fB\fCeugene diff <fromGenA> <toGenB> [handler]\fR
@@ -158,7 +159,7 @@ The following subcommands are available:
 
 .PP
 \fB\fCeugene deletedups [--dry-run] [--align]\fR
-  Delete duplicates generations.
+  Delete duplicates generations based on hashes.
   If \fB\fC--align\fR specified, aligns the generations after deleting duplicates.
 
 .PP

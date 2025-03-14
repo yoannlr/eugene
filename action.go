@@ -9,7 +9,6 @@ import (
 	"slices"
 	"path/filepath"
 	"strconv"
-	"crypto/sha256"
 )
 
 func doBuild(args []string, repo string, gens string, config Config) bool {
@@ -25,8 +24,6 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 	hostname, _ := os.Hostname()
 
 	hasDiff := true
-
-	genHash := sha256.New()
 
 	for _, h := range config.Handlers {
 		if ! handlerShouldRun(h) {
@@ -68,8 +65,6 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 			handlerResult, _ := os.Create(filepath.Join(newGenDir, h.Name))
 			for _, p := range handlerEntries {
 				handlerResult.WriteString(p + "\n")
-				// hash a partir des entries dans l'ordre => reproductible
-				genHash.Write([]byte(p))
 			}
 			handlerResult.Close()
 
@@ -81,10 +76,6 @@ func doBuild(args []string, repo string, gens string, config Config) bool {
 			}
 		}
 	}
-
-	hashFile, _ := os.Create(filepath.Join(newGenDir, "_hash"))
-	hashFile.WriteString(fmt.Sprintf("%x\n", genHash.Sum(nil)))
-	hashFile.Close()
 
 	if hasDiff {
 		genSetLatest(gens, newGen)
